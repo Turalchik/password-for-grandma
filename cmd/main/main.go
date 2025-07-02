@@ -39,7 +39,7 @@ var keyboard = [][]byte{
 
 type Cell struct {
 	Cost              int
-	IndexesAddedWords []int
+	IndexesAddedWords map[int]struct{}
 	LastWord          string
 }
 
@@ -72,7 +72,7 @@ func main() {
 	}
 
 	var builder strings.Builder
-	for _, indexWord := range bestCell.IndexesAddedWords {
+	for indexWord, _ := range bestCell.IndexesAddedWords {
 		builder.WriteString(dictionary[indexWord])
 	}
 	fmt.Printf("надежынй пароль: %s\nколичество передвижений пальцем: %v", builder.String(), bestCell.Cost)
@@ -88,7 +88,7 @@ func dpAlgorithm(dictionary []string, char2CharDist [][]int, k, minLen, maxLen i
 	}
 	dp[0][0] = Cell{
 		Cost:              0,
-		IndexesAddedWords: []int{},
+		IndexesAddedWords: make(map[int]struct{}),
 		LastWord:          string(initChar),
 	}
 
@@ -106,14 +106,7 @@ func dpAlgorithm(dictionary []string, char2CharDist [][]int, k, minLen, maxLen i
 			}
 
 			for idx, word := range dictionary {
-				used := false
-				for _, prevIdx := range cell.IndexesAddedWords {
-					if prevIdx == idx {
-						used = true
-						break
-					}
-				}
-				if used {
+				if _, ok := cell.IndexesAddedWords[idx]; ok {
 					continue
 				}
 
@@ -128,8 +121,8 @@ func dpAlgorithm(dictionary []string, char2CharDist [][]int, k, minLen, maxLen i
 				wcost := calculateWordCost(word, char2CharDist)
 				newCost := cell.Cost + trans + wcost
 
-				newPath := append([]int{}, cell.IndexesAddedWords...)
-				newPath = append(newPath, idx)
+				newPath := copyMap(cell.IndexesAddedWords)
+				newPath[idx] = struct{}{}
 
 				if next[newLen].IndexesAddedWords == nil || newCost < next[newLen].Cost {
 					next[newLen] = Cell{
@@ -196,4 +189,12 @@ func calculateCostPath2Word(from, to string, char2CharDist [][]int) int {
 		return 0
 	}
 	return char2CharDist[from[len(from)-1]][to[0]]
+}
+
+func copyMap(orig map[int]struct{}) map[int]struct{} {
+	newMap := make(map[int]struct{}, len(orig))
+	for k, _ := range orig {
+		newMap[k] = struct{}{}
+	}
+	return newMap
 }
