@@ -92,32 +92,56 @@ func dpAlgorithm(dictionary []string, char2CharDist [][]int, k, minLen, maxLen i
 		LastWord:          string(initChar),
 	}
 
-	for indexWord, word := range dictionary {
-		wordCost := calculateWordCost(word, char2CharDist)
-		wordLen := len(word)
+	for layer := 0; layer < k; layer++ {
+		next := make([]Cell, maxLen+1)
 
-		for curK := k - 1; curK >= 0; curK-- {
-			for curLen := 0; curLen <= maxLen-wordLen; curLen++ {
-				if dp[curK][curLen].IndexesAddedWords != nil {
-					newK := curK + 1
-					newLen := curLen + wordLen
-					newCost := dp[curK][curLen].Cost + calculateCostPath2Word(dp[curK][curLen].LastWord, word, char2CharDist) + wordCost
+		for L := range next {
+			next[L] = Cell{IndexesAddedWords: nil}
+		}
 
-					if dp[newK][newLen].IndexesAddedWords == nil {
-						dp[newK][newLen] = Cell{
-							Cost:              newCost,
-							IndexesAddedWords: append([]int{}, dp[curK][curLen].IndexesAddedWords...),
-							LastWord:          word,
-						}
-						dp[newK][newLen].IndexesAddedWords = append(dp[newK][newLen].IndexesAddedWords, indexWord)
+		for curLen := 0; curLen <= maxLen; curLen++ {
+			cell := dp[layer][curLen]
+			if cell.IndexesAddedWords == nil {
+				continue
+			}
 
-					} else if dp[newK][newLen].Cost > newCost {
-						dp[newK][newLen].IndexesAddedWords[len(dp[newK][newLen].IndexesAddedWords)-1] = indexWord
-						dp[newK][newLen].Cost = newCost
+			for idx, word := range dictionary {
+				used := false
+				for _, prevIdx := range cell.IndexesAddedWords {
+					if prevIdx == idx {
+						used = true
+						break
+					}
+				}
+				if used {
+					continue
+				}
+
+				wlen := len(word)
+				newLen := curLen + wlen
+
+				if newLen > maxLen {
+					continue
+				}
+
+				trans := calculateCostPath2Word(cell.LastWord, word, char2CharDist)
+				wcost := calculateWordCost(word, char2CharDist)
+				newCost := cell.Cost + trans + wcost
+
+				newPath := append([]int{}, cell.IndexesAddedWords...)
+				newPath = append(newPath, idx)
+
+				if next[newLen].IndexesAddedWords == nil || newCost < next[newLen].Cost {
+					next[newLen] = Cell{
+						Cost:              newCost,
+						IndexesAddedWords: newPath,
+						LastWord:          word,
 					}
 				}
 			}
 		}
+
+		dp[layer+1] = next
 	}
 
 	return dp
