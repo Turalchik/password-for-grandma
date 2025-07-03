@@ -9,30 +9,6 @@ import (
 	"time"
 )
 
-var dictionary = []string{
-	"apple",
-	"banana",
-	"cherry",
-	"date",
-	"elderberry",
-	"fig",
-	"grape",
-	"honeydew",
-	"kiwi",
-	"lemon",
-	"mango",
-	"nectarine",
-	"orange",
-	"papaya",
-	"quince",
-	"raspberry",
-	"strawberry",
-	"tangerine",
-	"watermelon",
-	"yam",
-	"zucchini",
-}
-
 var ASCIISIZE int = 256
 
 var keyboard = [][]byte{
