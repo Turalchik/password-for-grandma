@@ -20,7 +20,6 @@ var keyboard = [][]byte{
 type Cell struct {
 	Cost              int
 	IndexesAddedWords map[int]struct{}
-	LastWord          string
 }
 
 func loadDictionary(path string, minWordLen, maxWordLen int) []string {
@@ -76,9 +75,10 @@ func main() {
 
 	var best *Cell
 	for L := minLen; L <= maxLen; L++ {
-		if dp[k][L].IndexesAddedWords != nil {
-			if best == nil || dp[k][L].Cost < best.Cost {
-				best = &dp[k][L]
+		for c := 0; c < ASCIISIZE; c++ {
+			cell := dp[k][L][c]
+			if cell.IndexesAddedWords != nil && (best == nil || cell.Cost < best.Cost) {
+				best = &cell
 			}
 		}
 	}
@@ -101,60 +101,48 @@ func main() {
 // k - number words in password
 // minLen - min len of password
 // maxLen - max len of password
-func dpAlgorithm(dictionary []string, char2CharDist [][]int, k, minLen, maxLen int, initChar byte) [][]Cell {
-	dp := make([][]Cell, k+1)
-	for i := range dp {
-		dp[i] = make([]Cell, maxLen+1)
+func dpAlgorithm(dictionary []string, char2CharDist [][]int, k, minLen, maxLen int, initChar byte) [][][]Cell {
+	dp := make([][][]Cell, k+1)
+	for layer := range dp {
+		dp[layer] = make([][]Cell, maxLen+1)
+		for L := range dp[layer] {
+			dp[layer][L] = make([]Cell, ASCIISIZE)
+		}
 	}
-	dp[0][0] = Cell{
-		Cost:              0,
-		IndexesAddedWords: make(map[int]struct{}),
-		LastWord:          string(initChar),
-	}
+
+	dp[0][0][initChar].Cost = 0
+	dp[0][0][initChar].IndexesAddedWords = make(map[int]struct{})
 
 	for layer := 0; layer < k; layer++ {
-		next := make([]Cell, maxLen+1)
-
-		for L := range next {
-			next[L] = Cell{IndexesAddedWords: nil}
-		}
-
-		for curLen := 0; curLen <= maxLen; curLen++ {
-			cell := dp[layer][curLen]
-			if cell.IndexesAddedWords == nil {
-				continue
-			}
-
-			for idx, word := range dictionary {
-				if _, ok := cell.IndexesAddedWords[idx]; ok {
+		for L := 0; L <= maxLen; L++ {
+			for last := 0; last < ASCIISIZE; last++ {
+				cell := dp[layer][L][last]
+				if cell.IndexesAddedWords == nil {
 					continue
 				}
 
-				wlen := len(word)
-				newLen := curLen + wlen
+				for idx, word := range dictionary {
+					newL := L + len(word)
+					if newL > maxLen {
+						continue
+					}
 
-				if newLen > maxLen {
-					continue
-				}
+					if _, ok := cell.IndexesAddedWords[idx]; ok {
+						continue
+					}
 
-				trans := calculateCostPath2Word(cell.LastWord, word, char2CharDist)
-				wcost := calculateWordCost(word, char2CharDist)
-				newCost := cell.Cost + trans + wcost
+					cost := cell.Cost + char2CharDist[last][word[0]] + calculateWordCost(word, char2CharDist)
+					nextCell := &dp[layer+1][newL][word[len(word)-1]]
 
-				newPath := copyMap(cell.IndexesAddedWords)
-				newPath[idx] = struct{}{}
-
-				if next[newLen].IndexesAddedWords == nil || newCost < next[newLen].Cost {
-					next[newLen] = Cell{
-						Cost:              newCost,
-						IndexesAddedWords: newPath,
-						LastWord:          word,
+					if nextCell.IndexesAddedWords == nil || cost < nextCell.Cost {
+						newPath := copyMap(cell.IndexesAddedWords)
+						newPath[idx] = struct{}{}
+						nextCell.Cost = cost
+						nextCell.IndexesAddedWords = newPath
 					}
 				}
 			}
 		}
-
-		dp[layer+1] = next
 	}
 
 	return dp
@@ -202,13 +190,6 @@ func calculateWordCost(word string, char2CharDist [][]int) int {
 		cost += char2CharDist[word[i-1]][word[i]]
 	}
 	return cost
-}
-
-func calculateCostPath2Word(from, to string, char2CharDist [][]int) int {
-	if len(to) == 0 || len(from) == 0 {
-		return 0
-	}
-	return char2CharDist[from[len(from)-1]][to[0]]
 }
 
 func copyMap(orig map[int]struct{}) map[int]struct{} {
