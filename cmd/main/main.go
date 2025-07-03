@@ -1,8 +1,12 @@
 package main
 
 import (
+	"bufio"
 	"fmt"
+	"log"
+	"os"
 	"strings"
+	"time"
 )
 
 var dictionary = []string{
@@ -43,7 +47,45 @@ type Cell struct {
 	LastWord          string
 }
 
+func loadDictionary(path string, minWordLen, maxWordLen int) []string {
+	f, err := os.Open(path)
+	if err != nil {
+		log.Fatalf("не удалось открыть словарь %s: %v", path, err)
+	}
+	defer f.Close()
+
+	scanner := bufio.NewScanner(f)
+	var dict []string
+	for scanner.Scan() {
+		w := strings.TrimSpace(scanner.Text())
+		if len(w) >= minWordLen && len(w) <= maxWordLen && isASCIIAlpha(w) {
+			dict = append(dict, strings.ToLower(w))
+		}
+	}
+	if err := scanner.Err(); err != nil {
+		log.Fatalf("ошибка чтения словаря: %v", err)
+	}
+	return dict
+}
+
+func isASCIIAlpha(s string) bool {
+	for i := 0; i < len(s); i++ {
+		c := s[i]
+		if c < 'A' || (c > 'Z' && c < 'a') || c > 'z' {
+			return false
+		}
+	}
+	return true
+}
+
 func main() {
+
+	dictFile := "/usr/share/dict/words"
+	dictionary := loadDictionary(dictFile, 1, 24)
+	fmt.Printf("Загружено %d слов\n", len(dictionary))
+
+	start := time.Now()
+
 	char2CharDist := make([][]int, ASCIISIZE)
 	for row := range keyboard {
 		for col, char := range keyboard[row] {
@@ -52,30 +94,32 @@ func main() {
 	}
 
 	k := 4
-	minLen := 20
-	maxLen := 24
+	minLen, maxLen := 20, 24
+	var initChar byte = 'g'
+	dp := dpAlgorithm(dictionary, char2CharDist, k, minLen, maxLen, initChar)
 
-	dp := dpAlgorithm(dictionary, char2CharDist, k, minLen, maxLen, 'g')
-
-	var bestCell *Cell
-	for curLen := minLen; curLen <= maxLen; curLen++ {
-		if dp[k][curLen].IndexesAddedWords != nil {
-			if bestCell == nil || dp[k][curLen].Cost < bestCell.Cost {
-				bestCell = &dp[k][curLen]
+	var best *Cell
+	for L := minLen; L <= maxLen; L++ {
+		if dp[k][L].IndexesAddedWords != nil {
+			if best == nil || dp[k][L].Cost < best.Cost {
+				best = &dp[k][L]
 			}
 		}
 	}
 
-	if bestCell == nil {
+	if best == nil {
 		fmt.Println("нет решений")
 		return
 	}
-
-	var builder strings.Builder
-	for indexWord, _ := range bestCell.IndexesAddedWords {
-		builder.WriteString(dictionary[indexWord])
+	var sb strings.Builder
+	for idx, _ := range best.IndexesAddedWords {
+		sb.WriteString(dictionary[idx])
 	}
-	fmt.Printf("надежынй пароль: %s\nколичество передвижений пальцем: %v", builder.String(), bestCell.Cost)
+
+	elapsed := time.Since(start)
+
+	fmt.Printf("надежынй пароль: %s\nперемещений: %d\nвремя работы алгоритма: %v\n",
+		sb.String(), best.Cost, elapsed)
 }
 
 // k - number words in password
