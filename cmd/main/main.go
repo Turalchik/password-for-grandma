@@ -56,7 +56,7 @@ func isASCIIAlpha(s string) bool {
 
 func main() {
 
-	dictFile := "/usr/share/dict/words"
+	dictFile := "./words"
 	dictionary := loadDictionary(dictFile, 1, 24)
 	fmt.Printf("Загружено %d слов\n", len(dictionary))
 
